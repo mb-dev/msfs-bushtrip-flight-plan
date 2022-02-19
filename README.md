@@ -18,3 +18,9 @@ spb2xml-msfs.exe -s "C:\Program Files (x86)\Steam\steamapps\common\MicrosoftFlig
 
 3) Open the flt in Little Nav Map and save it as a lnmpln file
 4) Update paths in convert.py script and execute
+
+NOTE: right now there's one issue with exported lnmpln file - LittleNavMap wants the:
+```
+<?xml version="1.0" ?>
+```
+to be in its own line but minidom doesn't do it. So edit the output lnmpln and add line break after the first xml descriptor tag.
