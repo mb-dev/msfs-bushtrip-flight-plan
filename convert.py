@@ -3,9 +3,19 @@ import re
 from configparser import ConfigParser
 from xml.dom import minidom
 
+username = "Moshe Bergman"
+bush_trip_folder = "asobo-bushtrip-nevada"
+path_to_flt = r"Nevada.FLT"
+path_to_xml = r"nevada.xml"
+company = "Asobo"
+bush_trip_path = r"C:\Users" + '\\' + username + r"\AppData\Roaming\Microsoft Flight Simulator\Packages\Official\Steam" + '\\' + bush_trip_folder + '\\'
+inner_bush_trip_path = bush_trip_path + r"Missions" + '\\' + company + r"\BushTrips\nevada" + '\\'
+lnmpln_path_original = r"C:\Users\Moshe Bergman\Documents\Flight Plans\Nevada\Main - VFR Breckenridge Airport (O64) to Mariposa-Yosemite (KMPI).lnmpln"
+lnmpln_path_modified = r"C:\Users\Moshe Bergman\Documents\Flight Plans\Nevada\Main - VFR Breckenridge Airport (O64) to Mariposa-Yosemite (KMPI) - Modified.lnmpln"
+html_path = r"C:\Users\Moshe Bergman\Documents\Flight Plans\Nevada\nevada.html"
 
 
-with open(r"C:\Users\Moshe Bergman\AppData\Roaming\Microsoft Flight Simulator\Packages\Official\Steam\asobo-bushtrip-nevada\en-US.locPak", "r") as file_contents:
+with open(bush_trip_path + "en-US.locPak", "r") as file_contents:
     locPak = json.load(file_contents)
     strings = locPak['LocalisationPackage']['Strings']
     # ordered_strings = list(strings.keys())
@@ -17,7 +27,7 @@ with open(r"C:\Users\Moshe Bergman\AppData\Roaming\Microsoft Flight Simulator\Pa
     poi_to_names = {}
 
     config = ConfigParser()
-    config.read(r"C:\Users\Moshe Bergman\AppData\Roaming\Microsoft Flight Simulator\Packages\Official\Steam\asobo-bushtrip-nevada\Missions\Asobo\BushTrips\nevada\Nevada.FLT")
+    config.read(inner_bush_trip_path + path_to_flt)
     for key, value in config.items('ATC_ActiveFlightPlan.0'):
         if key.startswith("waypoint"):
             parts = value.split(",")
@@ -33,7 +43,7 @@ with open(r"C:\Users\Moshe Bergman\AppData\Roaming\Microsoft Flight Simulator\Pa
                 poi_to_names[poi].append(parts[3].strip())
 
 
-    desc = minidom.parse(r'C:\Users\Moshe Bergman\AppData\Roaming\Microsoft Flight Simulator\Packages\Official\Steam\asobo-bushtrip-nevada\Missions\Asobo\BushTrips\nevada\Nevada.xml')
+    desc = minidom.parse(inner_bush_trip_path + path_to_xml)
 
     sublegs = []
 
@@ -48,13 +58,21 @@ with open(r"C:\Users\Moshe Bergman\AppData\Roaming\Microsoft Flight Simulator\Pa
             comment = strings[subleg.getElementsByTagName("SimBase.Descr")[0].firstChild.nodeValue.split(":")[1]]
             sublegs.append({"name": poi_name, "comment": comment})
             output += "<tr><td>" + poi + "</td><td>" + poi_name + "</td><td>" + comment + "</td></tr>"
+
+            image_tag = subleg.getElementsByTagName("ImagePath")[0].firstChild.nodeValue.strip()
+            if len(image_tag) > 0:
+                airport_poi = subleg.getElementsByTagName("ATCWaypointEnd")[0].attributes['id'].value
+                airport_name = poi_to_names[airport_poi][0]
+                output += "<tr><td>" + airport_poi + "</td><td>" + airport_name + "</td><td><img src='file://" + inner_bush_trip_path + image_tag + "' width='50%'></td></tr>"
+
+
         output += "</table>"
 
     output += "</body></html>"
-    with open(r"C:\Users\Moshe Bergman\Documents\Flight Plans\Nevada\nevada.html", 'w') as f:
+    with open(html_path, 'w') as f:
         f.write(output)
 
-    lnm_xml = minidom.parse(r"C:\Users\Moshe Bergman\Documents\Flight Plans\Nevada\Main - VFR Breckenridge Airport (O64) to Mariposa-Yosemite (KMPI).lnmpln")
+    lnm_xml = minidom.parse(lnmpln_path_original)
     for waypoint in lnm_xml.getElementsByTagName('Waypoint'):
         if len(sublegs) == 0:
             break
@@ -73,5 +91,5 @@ with open(r"C:\Users\Moshe Bergman\AppData\Roaming\Microsoft Flight Simulator\Pa
 
 
 
-    with open(r"C:\Users\Moshe Bergman\Documents\Flight Plans\Nevada\Main - VFR Breckenridge Airport (O64) to Mariposa-Yosemite (KMPI) - Modified.lnmpln", "w") as lnm:
-        lnm_xml.writexml(lnm)
+    with open(lnmpln_path_modified, "w") as lnm:
+        lnm.write(lnm_xml.toprettyxml(indent="  ", newl='\r'))
