@@ -9,11 +9,13 @@ from configparser import ConfigParser
 from xml.dom import minidom
 
 # to use for sky vector. returns truncated dms
-def decdeg2dms(dd):
-    dd = abs(dd)
-    minutes,seconds = divmod(dd*3600,60)
-    degrees,minutes = divmod(minutes,60)
-    return (math.trunc(degrees),math.trunc(minutes),math.trunc(seconds))
+def decdeg2dms(degs):
+    neg = degs < 0
+    degs = (-1) ** neg * degs
+    degs, d_int = math.modf(degs)
+    mins, m_int = math.modf(60 * degs)
+    secs        =           60 * mins
+    return math.trunc(d_int), math.trunc(m_int), math.trunc(secs)
 
 def fix_lat_lon(str):
     return str[1:] + str[0]
@@ -45,23 +47,26 @@ class LegWaypoint:
     def skyvector_lat(self):
         c = 'N' if self.lat >= 0 else 'S'
         degrees, minutes, seconds = decdeg2dms(self.lat)
-        return f"{degrees}{minutes}{seconds}{c}"
+        return f"{degrees:02}{minutes:02}{seconds:02}{c}"
 
     def skyvector_lon(self):
         c = 'E' if self.lon >= 0 else 'W'
         degrees, minutes, seconds = decdeg2dms(self.lon)
-        return f"{degrees}{minutes}{seconds}{c}"
+        return f"{degrees:03}{minutes:02}{seconds:02}{c}"
 
 @dataclass
 class Leg:
     title: str
     waypoints: typing.List[LegWaypoint]
 
-    def to_skyvector_plan_url(self):
+    def to_skyvector_plan_url(self, use_airport_code=False):
         first_waypoint = self.waypoints[0]
         last_waypoint = self.waypoints[-1]
 
-        flight_plan = first_waypoint.code + " " + " ".join([f"{waypoint.skyvector_lat()}{waypoint.skyvector_lon()}" for waypoint in self.waypoints[1:-1]])  + " " + last_waypoint.code
+        if use_airport_code:
+            flight_plan = first_waypoint.code + " " + " ".join([f"{waypoint.skyvector_lat()}{waypoint.skyvector_lon()}" for waypoint in self.waypoints[1:-1]])  + " " + last_waypoint.code
+        else:
+            flight_plan = " ".join([f"{waypoint.skyvector_lat()}{waypoint.skyvector_lon()}" for waypoint in self.waypoints])
         return f"https://skyvector.com/?ll={first_waypoint.lat},{first_waypoint.lon}&chart=301&zoom=2&fpl={urllib.parse.quote(flight_plan)}"
 
 bush_trip_root_path =  r"C:\Users\Moshe Bergman\AppData\Roaming\Microsoft Flight Simulator\Packages\Official\Steam"
@@ -182,8 +187,8 @@ for trip_name, trip_desc in bush_trips.items():
                         output += "</td><td>" + airport_info.name + "</td><td><img src='file://" + image_path + "'></td></tr>"
 
             output += "<tr><td colspan='3'>"
-            output += "<a target='_blank' href='" + leg.to_skyvector_plan_url() + "'>View as SkyVector Flight Plan</a></br>"
-            output += "<p style='font: 8px, color: gray'>Note: Some flight simulator airports don\'t exist in the real world and either will not show up or appear in the wrong place in SkyVector</p>"
+            output += "View as SkyVector Flight Plan (<a target='_blank' href='" + leg.to_skyvector_plan_url(True) + "'>with airport code</a>), (<a target='_blank' href='" + leg.to_skyvector_plan_url(False) + "'>without airport code</a>)</br>"
+            output += "<p style='font: 8px, color: gray'>Note: Use without airport code version if the leg airports do not exist in the real world</p>"
             output += "</td></tr>"
             output += "</table>"
 
