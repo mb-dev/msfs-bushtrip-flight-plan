@@ -1,2 +1,6 @@
 dms2dec
 pillow
+pyppeteer
+asyncio
+geopy
+magnetic_field_calculator

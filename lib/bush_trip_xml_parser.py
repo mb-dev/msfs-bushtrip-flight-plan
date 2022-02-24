@@ -1,10 +1,16 @@
+import re
 import math
 import os
 import shutil
 import typing
 import urllib
+import urllib.request
 from dataclasses import dataclass
 from xml.dom import minidom
+from PIL import Image
+from pyppeteer import launch
+import latlon
+import zipfile
 
 from lib.flt_parser import FltParser
 from lib.localization_strings import LocalizationStrings
@@ -28,6 +34,8 @@ class LegWaypoint:
     lon: float
     image_path: typing.Optional[str] = None
     new_image_path: typing.Optional[str] = None
+    distance: int = None
+    heading: int = None
 
     def skyvector_lat(self):
         c = 'N' if self.lat >= 0 else 'S'
@@ -59,7 +67,6 @@ class BushTripXMLParser:
     def __init__(self, file_path: str, localization_strings: LocalizationStrings, flt_parser: FltParser, image_prefix_path: str, pdf_image_path: str):
         desc = minidom.parse(file_path)
 
-
         self.legs: typing.List[Leg] = []
 
         # used for matching flight plan waypoints. has airports only once unlike legs which has airports on both departing and arriving leg
@@ -73,6 +80,8 @@ class BushTripXMLParser:
                 title = f"Leg {i+1}"
 
             leg = Leg(title, [])
+            self.legs.append(leg)
+
             for sublegTag in legTag.getElementsByTagName('SubLeg'):
                 poi = sublegTag.getElementsByTagName("ATCWaypointStart")[0].attributes['id'].value
                 poi_desc = flt_parser.pop_next_name_for_poi(poi)
@@ -97,29 +106,60 @@ class BushTripXMLParser:
 
                         leg.waypoints.append(LegWaypoint(airport_poi, airport_info.name, "", airport_info.lat, airport_info.lon, image_path, new_image_path))
 
+        for leg in self.legs:
+            for i, waypoint in enumerate(leg.waypoints):
+                if i+1 == len(leg.waypoints):
+                    break
+
+                from_waypoint = latlon.LatLon(waypoint.lat, waypoint.lon)
+                to_waypoint = latlon.LatLon(leg.waypoints[i+1].lat, leg.waypoints[i+1].lon)
+                # TODO: heading calculation doesn't match magnetic course. need to figure out how to improve
+                waypoint.heading = from_waypoint.heading_initial(to_waypoint)
+                waypoint.distance = from_waypoint.distance(to_waypoint, ellipse = 'sphere') * 0.621371 # to mile
+
     def pop_waypoint(self):
         if len(self.waypoint_queue) == 0:
             return None
 
         return self.waypoint_queue.pop(0)
 
-    def trip_to_html(self, html_path: str):
-        output = ""
+    async def trip_to_html(self, html_path: str):
+        print("writing html to: ", html_path)
+        output = """<html><head><style>@page {
+    margin-top: 0.75in;
+    margin-bottom: 0.75in;
+    margin-left: 0.75in;
+    margin-right: 0.75in;    
+}</style><link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css"></head><body>"""
         for leg in self.legs:
             output += "<h2>" + leg.title + "</h2>"
             output += "<table>"
-            for waypoint in leg.waypoints:
+            for i, waypoint in enumerate(leg.waypoints):
                 output += "<tr><td style='white-space: nowrap'>"
                 output += waypoint.code
-                output += " (<a href='http://maps.google.com/maps/place/" + str(waypoint.lat) + "+" + str(waypoint.lon) + "' target='_blank'>Gmaps</a>,"
+                output += "<br/> (<a href='http://maps.google.com/maps/place/" + str(waypoint.lat) + "+" + str(waypoint.lon) + "' target='_blank'>Gmaps</a>,"
                 output += " <a href='https://skyvector.com/?ll=" + str(waypoint.lat) + "," + str(waypoint.lon) + "&chart=301&zoom=2' target='_blank'>SkyVector</a>)"
-                output += "</td><td>" + waypoint.name + "</td>"
+                output += f"</td><td>{waypoint.name}"
+
+                if waypoint.heading and waypoint.distance:
+                    output += f"<br/>({waypoint.distance:.2f}nm)"
+
+                output += "</td>"
 
                 if waypoint.image_path is None:
                     output += "<td>" + waypoint.comment + "</td></tr>"
                 else:
-                    shutil.copy(waypoint.image_path, waypoint.new_image_path)
-                    output += "<td><img src='file://" + waypoint.new_image_path + "'></td></tr>"
+                    # resize image
+                    if not os.path.exists(waypoint.new_image_path):
+                        print("resizing image", waypoint.image_path)
+                        basewidth = 900
+                        img = Image.open(waypoint.image_path)
+                        wpercent = (basewidth/float(img.size[0]))
+                        hsize = int((float(img.size[1])*float(wpercent)))
+                        img = img.resize((basewidth, hsize), Image.ANTIALIAS)
+                        # save resized image
+                        img.save(waypoint.new_image_path)
+                    output += "<td><img src='" + urllib.request.pathname2url(waypoint.new_image_path) + "'></td></tr>"
 
             output += "<tr><td colspan='3'>"
             output += "View as SkyVector Flight Plan (<a target='_blank' href='" + leg.to_skyvector_plan_url(True) + "'>with airport code</a>), (<a target='_blank' href='" + leg.to_skyvector_plan_url(False) + "'>without airport code</a>)</br>"
@@ -131,3 +171,17 @@ class BushTripXMLParser:
 
         with open(html_path, 'w') as f:
             f.write(output)
+
+        pdf_path = html_path.replace(".html", ".pdf")
+        print("generating pdf", pdf_path)
+        #if not os.path.exists(pdf_path):
+        browser = await launch({
+            'executablePath': r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+        })
+        page = await browser.newPage()
+        await page.goto(html_path)
+        await page.pdf({
+            'path': pdf_path,
+            'format': 'A4',
+        })
+        await browser.close()
