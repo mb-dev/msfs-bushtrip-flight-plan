@@ -4,3 +4,4 @@ pyppeteer
 asyncio
 geopy
 magnetic_field_calculator
+yattag

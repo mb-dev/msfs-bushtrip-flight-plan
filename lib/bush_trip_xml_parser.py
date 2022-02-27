@@ -101,6 +101,9 @@ class BushTripXMLParser:
                         if not os.path.exists(image_path):
                             # france has wrong image extension for legs?
                             image_path = image_path.replace("png", "jpg")
+                            if not os.path.exists(image_path):
+                                # fix for seadesert
+                                image_path = os.path.splitext(image_path)[0] + "__BRIEF" + ".jpg"
 
                         new_image_path = os.path.join(pdf_image_path, os.path.basename(image_path))
 
@@ -123,7 +126,7 @@ class BushTripXMLParser:
 
         return self.waypoint_queue.pop(0)
 
-    async def trip_to_html(self, html_path: str):
+    async def trip_to_html(self, html_path: str, pdf_path, screenshot_path):
         print("writing html to: ", html_path)
         output = """<html><head><style>@page {
     margin-top: 0.75in;
@@ -169,19 +172,19 @@ class BushTripXMLParser:
 
         output += "</body></html>"
 
-        with open(html_path, 'w') as f:
+        with open(html_path, 'w', encoding="utf-8") as f:
             f.write(output)
 
-        pdf_path = html_path.replace(".html", ".pdf")
         print("generating pdf", pdf_path)
-        #if not os.path.exists(pdf_path):
-        browser = await launch({
-            'executablePath': r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-        })
-        page = await browser.newPage()
-        await page.goto(html_path)
-        await page.pdf({
-            'path': pdf_path,
-            'format': 'A4',
-        })
-        await browser.close()
+        if not os.path.exists(pdf_path):
+            browser = await launch({
+                'executablePath': r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+            })
+            page = await browser.newPage()
+            await page.goto(html_path)
+            await page.screenshot({"path": screenshot_path})
+            await page.pdf({
+                'path': pdf_path,
+                'format': 'A4',
+            })
+            await browser.close()
