@@ -1,4 +1,5 @@
 import asyncio
+import shutil
 import typing
 from dataclasses import dataclass
 import os
@@ -9,8 +10,7 @@ from lib.bush_trip_xml_parser import BushTripXMLParser
 from lib.flt_parser import FltParser
 from lib.little_nav_map import LittleNavMap
 from lib.localization_strings import LocalizationStrings
-
-
+from lib.msfs_plan import MSFSPlan
 
 
 @dataclass
@@ -27,6 +27,7 @@ class BushTripDesc:
     pdf_path: typing.Optional[str] = None
     pdf_screenshot_path: typing.Optional[str] = None
     zip_path: typing.Optional[str] = None
+    leg_plans_path: typing.Optional[str] = None
 
 
 
@@ -39,16 +40,22 @@ prop_def_path = r"C:\Program Files (x86)\Steam\steamapps\common\MicrosoftFlightS
 
 bush_trips = {
     "alaska": "asobo-bushtrip-alaska",
+    "austria": "microsoft-bushtrip-austria",
     "balkans": "asobo-bushtrip-balkans",
     "chile": "asobo-bushtrip-chile",
     "denmark": "asobo-bushtrip-denmark",
     "finland": "asobo-bushtrip-finland",
     "france": "asobo-bushtrip-france",
+    "germany": "microsoft-bushtrip-germany",
+    "greatbarrier": "microsoft-bushtrip-greatbarrier",
     "grandalpine": "microsoft-bushtrip-grandalpine",
+    "iceland": "asobo-bushtrip-iceland",
     "kimberley": "microsoft-bushtrip-kimberley",
     "nevada": r"asobo-bushtrip-nevada",
+    "norway": "asobo-bushtrip-norway",
     "seadesert": "microsoft-bushtrip-seadesert",
     "seaus": "microsoft-bushtrip-seaus",
+    "sweden": "asobo-bushtrip-sweden",
     "swiss": "microsoft-bushtrip-swiss",
     "tasmanian": "microsoft-bushtrip-tasmanian"
 }
@@ -64,7 +71,8 @@ async def main():
             pdf_path=os.path.join(commented_lnmpln_path, f"{trip_name}.pdf"),
             zip_path=os.path.join(commented_lnmpln_path, f"{trip_name}.zip"),
             output_image_path=os.path.join(commented_lnmpln_path, f"{trip_name}-files"),
-            pdf_screenshot_path=os.path.join(commented_lnmpln_path, f"{trip_name}1.png")
+            pdf_screenshot_path=os.path.join(commented_lnmpln_path, f"{trip_name}1.png"),
+            leg_plans_path=os.path.join(commented_lnmpln_path, f"{trip_name}-leg-plans")
         )
         for path, subdirs, files in os.walk(os.path.join(bush_trip_root_path, trip_sub_dir)):
             for name in files:
@@ -79,6 +87,7 @@ async def main():
                     trip_desc.image_prefix_path = os.path.abspath(os.path.join(path, ".."))
 
         os.makedirs(trip_desc.output_image_path, exist_ok=True)
+        os.makedirs(trip_desc.leg_plans_path, exist_ok=True)
 
         # convert spb to xml
         if not os.path.exists(trip_desc.xml_path):
@@ -97,11 +106,18 @@ async def main():
         little_nav_map = LittleNavMap(bush_trip_xml_parser)
         little_nav_map.generate_lnm_file(trip_desc.lnmpln_path_modified)
 
+        # create leg plans
+        msfs_plan = MSFSPlan(bush_trip_xml_parser)
+        msfs_plan.create_leg_plans(trip_desc.leg_plans_path)
+
         # zip
         print(f"writing zip file {trip_desc.zip_path}")
         zipf = zipfile.ZipFile(trip_desc.zip_path, 'w', zipfile.ZIP_DEFLATED)
         zipf.write(trip_desc.pdf_path, os.path.basename(trip_desc.pdf_path))
         zipf.write(trip_desc.lnmpln_path_modified, os.path.basename(trip_desc.lnmpln_path_modified))
+        zipf.write(trip_desc.leg_plans_path, os.path.basename(trip_desc.leg_plans_path))
+        for leg_plan in msfs_plan.plan_files:
+            zipf.write(leg_plan, os.path.join(os.path.basename(trip_desc.leg_plans_path), os.path.basename(leg_plan)))
         zipf.close()
 
 asyncio.run(main())

@@ -8,7 +8,9 @@ from lib.localization_strings import LocalizationStrings
 class POIDesc:
     name: str
     lat: float
+    orig_lat: str
     lon: float
+    orig_lon: str
 
 
 def fix_lat_lon(str):
@@ -28,20 +30,22 @@ class FltParser:
             if key.startswith("waypoint"):
                 parts = value.split(",")
                 poi = parts[1].strip()
-                lat = dms2dec(fix_lat_lon(parts[5].strip()))
-                lon = dms2dec(fix_lat_lon(parts[6].strip()))
+                orig_lat = parts[5].strip()
+                lat = dms2dec(fix_lat_lon(orig_lat))
+                orig_lon = parts[6].strip()
+                lon = dms2dec(fix_lat_lon(orig_lon))
 
                 if poi not in self.poi_to_names_queue:
                     self.poi_to_names_queue[poi] = []
 
                 if parts[3].strip().startswith("TT"):
                     translation_key = parts[3].strip().split(":")[1]
-                    self.poi_to_names_queue[poi].append(POIDesc(localization_strings.translation_for(translation_key), lat, lon))
+                    self.poi_to_names_queue[poi].append(POIDesc(localization_strings.translation_for(translation_key), lat, orig_lat, lon, orig_lon))
                 else:
-                    self.poi_to_names_queue[poi].append(POIDesc(parts[3].strip(), lat, lon))
+                    self.poi_to_names_queue[poi].append(POIDesc(parts[3].strip(), lat, orig_lat, lon, orig_lon))
 
-    def pop_next_name_for_poi(self, poi: str):
+    def pop_next_name_for_poi(self, poi: str) -> POIDesc:
         return self.poi_to_names_queue[poi].pop(0)
 
-    def get_next_name_for_poi(self, poi: str):
+    def get_next_name_for_poi(self, poi: str) -> POIDesc:
         return self.poi_to_names_queue[poi][0]

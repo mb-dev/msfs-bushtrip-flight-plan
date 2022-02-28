@@ -31,7 +31,9 @@ class LegWaypoint:
     name: str
     comment: str
     lat: float
+    orig_lat: str
     lon: float
+    orig_lon: str
     image_path: typing.Optional[str] = None
     new_image_path: typing.Optional[str] = None
     distance: int = None
@@ -86,7 +88,7 @@ class BushTripXMLParser:
                 poi = sublegTag.getElementsByTagName("ATCWaypointStart")[0].attributes['id'].value
                 poi_desc = flt_parser.pop_next_name_for_poi(poi)
                 comment = localization_strings.translation_for(sublegTag.getElementsByTagName("SimBase.Descr")[0].firstChild.nodeValue.split(":")[1])
-                waypoint = LegWaypoint(poi, poi_desc.name, comment, poi_desc.lat, poi_desc.lon)
+                waypoint = LegWaypoint(poi, poi_desc.name, comment, poi_desc.lat, poi_desc.orig_lat, poi_desc.lon, poi_desc.orig_lon)
                 leg.waypoints.append(waypoint)
                 self.waypoint_queue.append(waypoint)
 
@@ -107,7 +109,7 @@ class BushTripXMLParser:
 
                         new_image_path = os.path.join(pdf_image_path, os.path.basename(image_path))
 
-                        leg.waypoints.append(LegWaypoint(airport_poi, airport_info.name, "", airport_info.lat, airport_info.lon, image_path, new_image_path))
+                        leg.waypoints.append(LegWaypoint(airport_poi, airport_info.name, "", airport_info.lat, airport_info.orig_lat, airport_info.lon, airport_info.orig_lon, image_path, new_image_path))
 
         for leg in self.legs:
             for i, waypoint in enumerate(leg.waypoints):
