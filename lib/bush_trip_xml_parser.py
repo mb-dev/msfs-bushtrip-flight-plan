@@ -84,32 +84,39 @@ class BushTripXMLParser:
             leg = Leg(title, [])
             self.legs.append(leg)
 
-            for sublegTag in legTag.getElementsByTagName('SubLeg'):
+            sublegTags = legTag.getElementsByTagName('SubLeg')
+            for i, sublegTag in enumerate(sublegTags):
                 poi = sublegTag.getElementsByTagName("ATCWaypointStart")[0].attributes['id'].value
+
+                # image handling
+                image_tags = sublegTag.getElementsByTagName("ImagePath")
+                image_path = None
+                if len(image_tags) > 0:
+                    image_tag = image_tags[0].firstChild.nodeValue.strip()
+                    image_path = os.path.join(image_prefix_path, image_tag)
+                    if not os.path.exists(image_path):
+                        # france has wrong image extension for legs?
+                        image_path = image_path.replace("png", "jpg")
+                        if not os.path.exists(image_path):
+                            # fix for seadesert
+                            image_path = os.path.splitext(image_path)[0] + "__BRIEF" + ".jpg"
+
+                    new_image_path = os.path.join(pdf_image_path, os.path.basename(image_path))
+
                 poi_desc = flt_parser.pop_next_name_for_poi(poi)
                 comment = localization_strings.translation_for(sublegTag.getElementsByTagName("SimBase.Descr")[0].firstChild.nodeValue.split(":")[1])
                 waypoint = LegWaypoint(poi, poi_desc.name, comment, poi_desc.lat, poi_desc.orig_lat, poi_desc.lon, poi_desc.orig_lon)
                 leg.waypoints.append(waypoint)
                 self.waypoint_queue.append(waypoint)
 
-                image_tags = sublegTag.getElementsByTagName("ImagePath")
-                if len(image_tags) > 0:
-                    image_tag = image_tags[0].firstChild.nodeValue.strip()
-                    if len(image_tag) > 0:
-                        airport_poi = sublegTag.getElementsByTagName("ATCWaypointEnd")[0].attributes['id'].value
-                        airport_info = flt_parser.get_next_name_for_poi(airport_poi)
-
-                        image_path = os.path.join(image_prefix_path, image_tag)
-                        if not os.path.exists(image_path):
-                            # france has wrong image extension for legs?
-                            image_path = image_path.replace("png", "jpg")
-                            if not os.path.exists(image_path):
-                                # fix for seadesert
-                                image_path = os.path.splitext(image_path)[0] + "__BRIEF" + ".jpg"
-
-                        new_image_path = os.path.join(pdf_image_path, os.path.basename(image_path))
-
-                        leg.waypoints.append(LegWaypoint(airport_poi, airport_info.name, "", airport_info.lat, airport_info.orig_lat, airport_info.lon, airport_info.orig_lon, image_path, new_image_path))
+                # put last leg image with the waypoint
+                if i == len(sublegTags) - 1 and image_path:
+                    airport_poi = sublegTag.getElementsByTagName("ATCWaypointEnd")[0].attributes['id'].value
+                    airport_info = flt_parser.get_next_name_for_poi(airport_poi)
+                    leg.waypoints.append(LegWaypoint(airport_poi, airport_info.name, "", airport_info.lat, airport_info.orig_lat, airport_info.lon, airport_info.orig_lon, image_path, new_image_path))
+                elif image_path:
+                    waypoint.image_path = image_path
+                    waypoint.new_image_path = new_image_path
 
         for leg in self.legs:
             for i, waypoint in enumerate(leg.waypoints):
@@ -164,7 +171,12 @@ class BushTripXMLParser:
                         img = img.resize((basewidth, hsize), Image.ANTIALIAS)
                         # save resized image
                         img.save(waypoint.new_image_path)
-                    output += "<td><img src='" + urllib.request.pathname2url(waypoint.new_image_path) + "'></td></tr>"
+                    output += "<td><img src='" + urllib.request.pathname2url(waypoint.new_image_path) + f"'>"
+
+                    if waypoint.comment:
+                        output += f"<p>{waypoint.comment}</p>"
+
+                    output += "</td></tr>"
 
             output += "<tr><td colspan='3'>"
             output += "View as SkyVector Flight Plan (<a target='_blank' href='" + leg.to_skyvector_plan_url(True) + "'>with airport code</a>), (<a target='_blank' href='" + leg.to_skyvector_plan_url(False) + "'>without airport code</a>)</br>"

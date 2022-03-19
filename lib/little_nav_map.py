@@ -30,13 +30,14 @@ class LittleNavMap:
                     if (j > 0 and waypoint.image_path) and i < len(self.bush_trip_parser.legs) - 1:
                         # do not add airport twice to the flight plan, unless this is the last leg
                         break
+                    is_airport = True if j == 0 or j == (len(leg.waypoints) - 1) else False
                     with tag('Waypoint'):
                         with tag('Name'):
                             text(waypoint.name)
                         with tag('Ident'):
                             text(waypoint.code)
                         with tag('Type'):
-                            text("AIRPORT" if waypoint.image_path else 'USER')
+                            text("AIRPORT" if is_airport else 'USER')
                         if not waypoint.image_path:
                             with tag('Pos', Lat=waypoint.lat, Lon=waypoint.lon, Alt="1000"):
                                 pass
