@@ -24,6 +24,9 @@ class FltParser:
         config = ConfigParser()
         config.read(file_path)
 
+        self.title_tt = config["Main"]["Title"]
+        self.description_tt = config["Main"]["Description"]
+        self.briefing_tt = config["Briefing"]["BriefingText"]
         self.poi_to_names_queue = {}
 
         for key, value in config.items('ATC_ActiveFlightPlan.0'):

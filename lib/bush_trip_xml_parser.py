@@ -1,7 +1,5 @@
-import re
 import math
 import os
-import shutil
 import typing
 import urllib
 import urllib.request
@@ -10,10 +8,14 @@ from xml.dom import minidom
 from PIL import Image
 from pyppeteer import launch
 import latlon
-import zipfile
+import spacy
+from magnetic_field_calculator import MagneticFieldCalculator
+from cachier import cachier
+import datetime as dt
 
 from lib.flt_parser import FltParser
 from lib.localization_strings import LocalizationStrings
+import humanize
 
 
 def decdeg2dms(degs):
@@ -24,6 +26,17 @@ def decdeg2dms(degs):
     secs        =           60 * mins
     return math.trunc(d_int), math.trunc(m_int), math.trunc(secs)
 
+# since this takes time, cache results locally
+@cachier()
+def get_waypoint_mag_declination(lat, lon):
+    mag_field_calculator = MagneticFieldCalculator()
+    result = mag_field_calculator.calculate(
+        latitude=lat,
+        longitude=lon,
+        date='2028-12-31'
+    )
+    field_value = result['field-value']
+    return field_value['declination']['value']
 
 @dataclass
 class LegWaypoint:
@@ -36,8 +49,9 @@ class LegWaypoint:
     orig_lon: str
     image_path: typing.Optional[str] = None
     new_image_path: typing.Optional[str] = None
-    distance: int = None
-    heading: int = None
+    distance: float = None
+    heading: float = None
+    minutes: float = 0
 
     def skyvector_lat(self):
         c = 'N' if self.lat >= 0 else 'S'
@@ -53,6 +67,8 @@ class LegWaypoint:
 class Leg:
     title: str
     waypoints: typing.List[LegWaypoint]
+    total_nm: float = 0
+    minutes: float = 0
 
     def to_skyvector_plan_url(self, use_airport_code=False):
         first_waypoint = self.waypoints[0]
@@ -67,7 +83,15 @@ class Leg:
 
 class BushTripXMLParser:
     def __init__(self, file_path: str, localization_strings: LocalizationStrings, flt_parser: FltParser, image_prefix_path: str, pdf_image_path: str):
+
+        self.title = localization_strings.translation_for(flt_parser.title_tt)
+        self.description = localization_strings.translation_for(flt_parser.description_tt)
+        self.briefing = localization_strings.translation_for(flt_parser.briefing_tt)
+        self.total_nm = 0
+        self.minutes = 0
+
         desc = minidom.parse(file_path)
+
 
         self.legs: typing.List[Leg] = []
 
@@ -105,6 +129,7 @@ class BushTripXMLParser:
 
                 poi_desc = flt_parser.pop_next_name_for_poi(poi)
                 comment = localization_strings.translation_for(sublegTag.getElementsByTagName("SimBase.Descr")[0].firstChild.nodeValue.split(":")[1])
+
                 waypoint = LegWaypoint(poi, poi_desc.name, comment, poi_desc.lat, poi_desc.orig_lat, poi_desc.lon, poi_desc.orig_lon)
                 leg.waypoints.append(waypoint)
                 self.waypoint_queue.append(waypoint)
@@ -119,15 +144,24 @@ class BushTripXMLParser:
                     waypoint.new_image_path = new_image_path
 
         for leg in self.legs:
+
             for i, waypoint in enumerate(leg.waypoints):
                 if i+1 == len(leg.waypoints):
                     break
 
                 from_waypoint = latlon.LatLon(waypoint.lat, waypoint.lon)
                 to_waypoint = latlon.LatLon(leg.waypoints[i+1].lat, leg.waypoints[i+1].lon)
-                # TODO: heading calculation doesn't match magnetic course. need to figure out how to improve
                 waypoint.heading = from_waypoint.heading_initial(to_waypoint)
-                waypoint.distance = from_waypoint.distance(to_waypoint, ellipse = 'sphere') * 0.621371 # to mile
+                if waypoint.heading < 0:
+                    waypoint.heading = waypoint.heading + 360
+                waypoint.heading = waypoint.heading - get_waypoint_mag_declination(waypoint.lat, waypoint.lon)
+                waypoint.distance = from_waypoint.distance(to_waypoint, ellipse = 'sphere') * 0.5399568 # to nautical mile
+                waypoint.minutes = waypoint.distance / (150 / 60.0) # assuming 150kts
+                leg.total_nm += waypoint.distance
+                leg.minutes += waypoint.minutes
+
+            self.total_nm += leg.total_nm
+            self.minutes += leg.minutes
 
     def pop_waypoint(self):
         if len(self.waypoint_queue) == 0:
@@ -136,6 +170,8 @@ class BushTripXMLParser:
         return self.waypoint_queue.pop(0)
 
     async def trip_to_html(self, html_path: str, pdf_path, screenshot_path):
+        nlp = spacy.load("en_core_web_sm")
+
         print("writing html to: ", html_path)
         output = """<html><head><style>@page {
     margin-top: 0.75in;
@@ -143,6 +179,10 @@ class BushTripXMLParser:
     margin-left: 0.75in;
     margin-right: 0.75in;    
 }</style><link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css"></head><body>"""
+        output += "<h1>" + self.title + "</h1>"
+        output += "<p>" + self.description + "</p>"
+        output += "<p>" + self.briefing[:self.briefing.index("Assistance")] + "</p>"
+        output += f"<p>Total distance: {self.total_nm:.0f}nm, Total ETE with 150kts aircraft: {humanize.precisedelta(dt.timedelta(minutes=self.minutes), minimum_unit='minutes', format='%.0f')}</p>"
         for leg in self.legs:
             output += "<h2>" + leg.title + "</h2>"
             output += "<table>"
@@ -151,15 +191,20 @@ class BushTripXMLParser:
                 output += waypoint.code
                 output += "<br/> (<a href='http://maps.google.com/maps/place/" + str(waypoint.lat) + "+" + str(waypoint.lon) + "' target='_blank'>Gmaps</a>,"
                 output += " <a href='https://skyvector.com/?ll=" + str(waypoint.lat) + "," + str(waypoint.lon) + "&chart=301&zoom=2' target='_blank'>SkyVector</a>)"
-                output += f"</td><td>{waypoint.name}"
-
                 if waypoint.heading and waypoint.distance:
-                    output += f"<br/>({waypoint.distance:.2f}nm)"
-
+                    output += f"<br/>{waypoint.heading:.0f}&deg; {waypoint.distance:.1f}nm {waypoint.minutes:.1f} minutes"
+                output += f"</td><td>{waypoint.name}"
                 output += "</td>"
 
+                comment = waypoint.comment
+                if comment:
+                    doc = nlp(comment)
+                    for ent in doc.ents:
+                        if ent.label_ == "LOC" or ent.label_ == "ORG" or ent.label_ == "PERSON" or ent.label_ == "GPE":
+                            comment = comment.replace(ent.text, "<a target='_blank' href='https://www.google.com/search?q=" + ent.text + "'>" + ent.text + "</a>")
+
                 if waypoint.image_path is None:
-                    output += "<td>" + waypoint.comment + "</td></tr>"
+                    output += "<td>" + comment + "</td></tr>"
                 else:
                     # resize image
                     if not os.path.exists(waypoint.new_image_path):
@@ -173,14 +218,15 @@ class BushTripXMLParser:
                         img.save(waypoint.new_image_path)
                     output += "<td><img src='" + urllib.request.pathname2url(waypoint.new_image_path) + f"'>"
 
-                    if waypoint.comment:
-                        output += f"<p>{waypoint.comment}</p>"
+                    if comment:
+                        output += f"<p>{comment}</p>"
 
                     output += "</td></tr>"
 
             output += "<tr><td colspan='3'>"
             output += "View as SkyVector Flight Plan (<a target='_blank' href='" + leg.to_skyvector_plan_url(True) + "'>with airport code</a>), (<a target='_blank' href='" + leg.to_skyvector_plan_url(False) + "'>without airport code</a>)</br>"
             output += "<p style='font: 8px, color: gray'>Note: Use without airport code version if the leg airports do not exist in the real world</p>"
+            output += f"Total distance: {leg.total_nm:.0f}nm, ETE with 150kts aircraft: {humanize.precisedelta(dt.timedelta(minutes=leg.minutes), minimum_unit='minutes', format='%.0f')}"
             output += "</td></tr>"
             output += "</table>"
 
@@ -190,12 +236,14 @@ class BushTripXMLParser:
             f.write(output)
 
         print("generating pdf", pdf_path)
-        if not os.path.exists(pdf_path):
+        regenerate = True
+        if regenerate or not os.path.exists(pdf_path):
             browser = await launch({
                 'executablePath': r"C:\Program Files\Google\Chrome\Application\chrome.exe"
             })
             page = await browser.newPage()
             await page.goto(html_path)
+            await page.setViewport({ "width": 1600, "height": 1200 });
             await page.screenshot({"path": screenshot_path})
             await page.pdf({
                 'path': pdf_path,

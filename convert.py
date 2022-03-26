@@ -39,38 +39,42 @@ spb_to_xml_path = r"C:\MSFS\spb2xml-msfs-1.0.1\spb2xml-msfs.exe"
 prop_def_path = r"C:\Program Files (x86)\Steam\steamapps\common\MicrosoftFlightSimulator\Packages\fs-base-propdefs\Propdefs\1.0\Common"
 
 bush_trips = {
-    "alaska": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-alaska"),
-    "austria": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-austria"),
-    "balkans": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-balkans"),
-    "chile": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-chile"),
-    "denmark": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-denmark"),
-    "finland": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-finland"),
-    "france": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-france"),
-    "germany": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-germany"),
-    "greatbarrier": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-greatbarrier"),
+    # "alaska": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-alaska"),
+    # "austria": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-austria"),
+    # "balkans": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-balkans"),
+    # "chile": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-chile"),
+    # "denmark": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-denmark"),
+    # "finland": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-finland"),
+    # "france": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-france"),
+    # "germany": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-germany"),
+    # "greatbarrier": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-greatbarrier"),
     "grandalpine": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-grandalpine"),
-    "iceland": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-iceland"),
-    "kimberley": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-kimberley"),
-    "nevada": os.path.join(official_bush_trip_root_path, r"asobo-bushtrip-nevada"),
-    "norway": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-norway"),
-    "seadesert": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-seadesert"),
-    "seaus": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-seaus"),
-    "sweden": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-sweden"),
-    "swiss": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-swiss"),
-    "tasmanian": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-tasmanian"),
-    "i-a-t": [{
-        "name": "i-a-t-13-part1-DA62",
-        "path": os.path.join(community_bush_trip_path, "i-a-t-13-part1-DA62"),
-    }, {
-        "name": "i-a-t-13-part2-DA62",
-        "path": os.path.join(community_bush_trip_path, "i-a-t-13-part2-DA62"),
-    }, {
-        "name": "i-a-t-13-part3-DA62",
-        "path": os.path.join(community_bush_trip_path, "i-a-t-13-part3-DA62"),
-    }, {
-        "name": "i-a-t-13-part4-DA62",
-        "path": os.path.join(community_bush_trip_path, "i-a-t-13-part4-DA62"),
-    }]
+    # "iberiaconnection": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-iberiaconnection"),
+    # "iceland": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-iceland"),
+    # "kimberley": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-kimberley"),
+    # "medcoast": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-medcoast"),
+    # "nevada": os.path.join(official_bush_trip_root_path, r"asobo-bushtrip-nevada"),
+    # "norway": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-norway"),
+    # "portugal": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-portugal"),
+    # "pyrenees": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-pyrenees"),
+    # "seadesert": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-seadesert"),
+    # "seaus": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-seaus"),
+    # "sweden": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-sweden"),
+    # "swiss": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-swiss"),
+    # "tasmanian": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-tasmanian"),
+    # "i-a-t": [{
+    #     "name": "i-a-t-13-part1-DA62",
+    #     "path": os.path.join(community_bush_trip_path, "i-a-t-13-part1-DA62"),
+    # }, {
+    #     "name": "i-a-t-13-part2-DA62",
+    #     "path": os.path.join(community_bush_trip_path, "i-a-t-13-part2-DA62"),
+    # }, {
+    #     "name": "i-a-t-13-part3-DA62",
+    #     "path": os.path.join(community_bush_trip_path, "i-a-t-13-part3-DA62"),
+    # }, {
+    #     "name": "i-a-t-13-part4-DA62",
+    #     "path": os.path.join(community_bush_trip_path, "i-a-t-13-part4-DA62"),
+    # }]
     #"mission-pakn-pamk": os.path.join(community_bush_trip_path, "Alaska\mission-pakn-pamk"),
     # "sbt-p1-mission": os.path.join(community_bush_trip_path, "SBT-p1-Mission"),
 }
