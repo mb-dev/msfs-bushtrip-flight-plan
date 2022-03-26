@@ -80,6 +80,19 @@ class Leg:
             flight_plan = " ".join([f"{waypoint.skyvector_lat()}{waypoint.skyvector_lon()}" for waypoint in self.waypoints])
         return f"https://skyvector.com/?ll={first_waypoint.lat},{first_waypoint.lon}&chart=301&zoom=2&fpl={urllib.parse.quote(flight_plan)}"
 
+    def to_google_map_url(self):
+        first_waypoint = self.waypoints[0]
+        last_waypoint = self.waypoints[-1]
+
+        last_index = len(self.waypoints) - 1
+        if last_index > 8:
+            last_index = 8
+
+        waypoint_lat_lon = urllib.parse.quote("|".join([f"{w.lat} {w.lon}" for w in self.waypoints[1:last_index]]))
+        waypoint_place_names = urllib.parse.quote("|".join([f"{w.name}" for w in self.waypoints[1:last_index]]))
+
+        return f"https://www.google.com/maps/dir/?api=1&origin={first_waypoint.lat}+{first_waypoint.lon}&origin_place_id{urllib.parse.quote(first_waypoint.name)}&destination={last_waypoint.lat}+{last_waypoint.lon}&destination_place_id={urllib.parse.quote(last_waypoint.name)}&waypoints={waypoint_lat_lon}&waypoint_place_ids={waypoint_place_names}"
+
 
 class BushTripXMLParser:
     def __init__(self, file_path: str, localization_strings: LocalizationStrings, flt_parser: FltParser, image_prefix_path: str, pdf_image_path: str):
@@ -226,6 +239,8 @@ class BushTripXMLParser:
             output += "<tr><td colspan='3'>"
             output += "View as SkyVector Flight Plan (<a target='_blank' href='" + leg.to_skyvector_plan_url(True) + "'>with airport code</a>), (<a target='_blank' href='" + leg.to_skyvector_plan_url(False) + "'>without airport code</a>)</br>"
             output += "<p style='font: 8px, color: gray'>Note: Use without airport code version if the leg airports do not exist in the real world</p>"
+            output += "<a target='_blank' href='" + leg.to_google_map_url() + "'>View as Google Maps driving direction</a><br/>"
+            output += "<p style='font: 8px, color: gray'>Note: this is meant as another way to study a trip, google is limited to 9 waypoints and cannot draw routes that have no road connection</p>"
             output += f"Total distance: {leg.total_nm:.0f}nm, ETE with 150kts aircraft: {humanize.precisedelta(dt.timedelta(minutes=leg.minutes), minimum_unit='minutes', format='%.0f')}"
             output += "</td></tr>"
             output += "</table>"
