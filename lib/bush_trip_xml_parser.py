@@ -9,10 +9,10 @@ from PIL import Image
 from pyppeteer import launch
 import latlon
 import spacy
-from magnetic_field_calculator import MagneticFieldCalculator
-from cachier import cachier
 import datetime as dt
 
+from api.mag_declination import get_waypoint_mag_declination
+from api.elevation import get_elevation
 from lib.flt_parser import FltParser
 from lib.localization_strings import LocalizationStrings
 import humanize
@@ -26,17 +26,6 @@ def decdeg2dms(degs):
     secs        =           60 * mins
     return math.trunc(d_int), math.trunc(m_int), math.trunc(secs)
 
-# since this takes time, cache results locally
-@cachier()
-def get_waypoint_mag_declination(lat, lon):
-    mag_field_calculator = MagneticFieldCalculator()
-    result = mag_field_calculator.calculate(
-        latitude=lat,
-        longitude=lon,
-        date='2028-12-31'
-    )
-    field_value = result['field-value']
-    return field_value['declination']['value']
 
 @dataclass
 class LegWaypoint:
@@ -52,6 +41,8 @@ class LegWaypoint:
     distance: float = None
     heading: float = None
     minutes: float = 0
+    elevation: typing.Optional[typing.Dict] = None
+    is_airport: bool = False
 
     def skyvector_lat(self):
         c = 'N' if self.lat >= 0 else 'S'
@@ -62,6 +53,12 @@ class LegWaypoint:
         c = 'E' if self.lon >= 0 else 'W'
         degrees, minutes, seconds = decdeg2dms(self.lon)
         return f"{degrees:03}{minutes:02}{seconds:02}{c}"
+
+    def skyvector_waypoint(self, with_airport_code = False):
+        if self.is_airport and with_airport_code:
+            return self.code
+
+        return f"{self.skyvector_lat()}{self.skyvector_lon()}"
 
 @dataclass
 class Leg:
@@ -157,6 +154,8 @@ class BushTripXMLParser:
                     waypoint.new_image_path = new_image_path
 
         for leg in self.legs:
+            leg.waypoints[0].is_airport = True
+            leg.waypoints[-1].is_airport = True
 
             for i, waypoint in enumerate(leg.waypoints):
                 if i+1 == len(leg.waypoints):
@@ -170,11 +169,38 @@ class BushTripXMLParser:
                 waypoint.heading = waypoint.heading - get_waypoint_mag_declination(waypoint.lat, waypoint.lon)
                 waypoint.distance = from_waypoint.distance(to_waypoint, ellipse = 'sphere') * 0.5399568 # to nautical mile
                 waypoint.minutes = waypoint.distance / (150 / 60.0) # assuming 150kts
+                waypoint.elevation = get_elevation(waypoint.lat, waypoint.lon)
                 leg.total_nm += waypoint.distance
                 leg.minutes += waypoint.minutes
 
             self.total_nm += leg.total_nm
             self.minutes += leg.minutes
+
+    def to_google_map_url(self):
+        first_waypoint = self.legs[0].waypoints[0]
+        last_waypoint = self.legs[-1].waypoints[-1]
+
+        waypoints = []
+        for leg in self.legs[1:-1]:
+            if len(waypoints) < 8:
+                waypoints.append(leg.waypoints[0])
+
+        waypoint_lat_lon = urllib.parse.quote("|".join([f"{w.lat} {w.lon}" for w in waypoints]))
+        waypoint_place_names = urllib.parse.quote("|".join([f"{w.name}" for w in waypoints]))
+
+        return f"https://www.google.com/maps/dir/?api=1&origin={first_waypoint.lat}+{first_waypoint.lon}&origin_place_id{urllib.parse.quote(first_waypoint.name)}&destination={last_waypoint.lat}+{last_waypoint.lon}&destination_place_id={urllib.parse.quote(last_waypoint.name)}&waypoints={waypoint_lat_lon}&waypoint_place_ids={waypoint_place_names}"
+
+
+    def to_skyvector_plan_url(self, use_airport_code=False):
+        first_waypoint = self.legs[0].waypoints[0]
+        waypoints = []
+        for leg in self.legs:
+            for waypoint in leg.waypoints[:-2]:
+                waypoints.append(waypoint)
+        waypoints.append(self.legs[-1].waypoints[-1])
+
+        flight_plan = " ".join([f"{waypoint.skyvector_waypoint(use_airport_code)}" for waypoint in waypoints])
+        return f"https://skyvector.com/?ll={first_waypoint.lat},{first_waypoint.lon}&chart=301&zoom=2&fpl={urllib.parse.quote(flight_plan)}"
 
     def pop_waypoint(self):
         if len(self.waypoint_queue) == 0:
@@ -194,8 +220,10 @@ class BushTripXMLParser:
 }</style><link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css"></head><body>"""
         output += "<h1>" + self.title + "</h1>"
         output += "<p>" + self.description + "</p>"
-        output += "<p>" + self.briefing[:self.briefing.index("Assistance")] + "</p>"
-        output += f"<p>Total distance: {self.total_nm:.0f}nm, Total ETE with 150kts aircraft: {humanize.precisedelta(dt.timedelta(minutes=self.minutes), minimum_unit='minutes', format='%.0f')}</p>"
+        output += "<p>" + self.briefing[:self.briefing.index("Assistance")].strip() + "</p>"
+        output += f"<p>SkyVector Route: <a target='_blank' href='{self.to_skyvector_plan_url(True)}'>with airport code</a>, <a target='_blank' href='{self.to_skyvector_plan_url()}'>without airport code</a>"
+        output += f"<br/><a target='_blank' href='{self.to_google_map_url()}'>Google Maps Route</a> (with first waypoint of every leg)"
+        output += f"<br/>Total distance: {self.total_nm:.0f}nm, Total ETE with 150kts aircraft: {humanize.precisedelta(dt.timedelta(minutes=self.minutes), minimum_unit='minutes', format='%.0f')}</p>"
         for leg in self.legs:
             output += "<h2>" + leg.title + "</h2>"
             output += "<table>"
@@ -206,6 +234,8 @@ class BushTripXMLParser:
                 output += " <a href='https://skyvector.com/?ll=" + str(waypoint.lat) + "," + str(waypoint.lon) + "&chart=301&zoom=2' target='_blank'>SkyVector</a>)"
                 if waypoint.heading and waypoint.distance:
                     output += f"<br/>{waypoint.heading:.0f}&deg; {waypoint.distance:.1f}nm {waypoint.minutes:.1f} minutes"
+                if waypoint.elevation:
+                    output += f"<br/>{waypoint.elevation['feet']:.0f} feet {waypoint.elevation['meter']:.0f}m MSL"
                 output += f"</td><td>{waypoint.name}"
                 output += "</td>"
 

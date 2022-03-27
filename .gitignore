@@ -1,3 +1,5 @@
 .idea
 *.iml
 __pycache__
+google_api_key.py
+venv
