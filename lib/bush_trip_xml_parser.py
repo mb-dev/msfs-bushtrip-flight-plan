@@ -158,6 +158,8 @@ class BushTripXMLParser:
             leg.waypoints[-1].is_airport = True
 
             for i, waypoint in enumerate(leg.waypoints):
+                waypoint.elevation = get_elevation(waypoint.lat, waypoint.lon)
+
                 if i+1 == len(leg.waypoints):
                     break
 
@@ -169,7 +171,6 @@ class BushTripXMLParser:
                 waypoint.heading = waypoint.heading - get_waypoint_mag_declination(waypoint.lat, waypoint.lon)
                 waypoint.distance = from_waypoint.distance(to_waypoint, ellipse = 'sphere') * 0.5399568 # to nautical mile
                 waypoint.minutes = waypoint.distance / (150 / 60.0) # assuming 150kts
-                waypoint.elevation = get_elevation(waypoint.lat, waypoint.lon)
                 leg.total_nm += waypoint.distance
                 leg.minutes += waypoint.minutes
 
@@ -218,14 +219,24 @@ class BushTripXMLParser:
     margin-left: 0.75in;
     margin-right: 0.75in;    
 }</style><link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css"></head><body>"""
+
+        briefing_without_assistance = self.briefing.strip()
+        if "Assistance" in self.briefing:
+            briefing_without_assistance = self.briefing[:self.briefing.index("Assistance")].strip()
+
         output += "<h1>" + self.title + "</h1>"
         output += "<p>" + self.description + "</p>"
-        output += "<p>" + self.briefing[:self.briefing.index("Assistance")].strip() + "</p>"
-        output += f"<p>SkyVector Route: <a target='_blank' href='{self.to_skyvector_plan_url(True)}'>with airport code</a>, <a target='_blank' href='{self.to_skyvector_plan_url()}'>without airport code</a>"
+        output += "<p>" + briefing_without_assistance
+        output += f"SkyVector Route: <a target='_blank' href='{self.to_skyvector_plan_url(True)}'>with airport code</a>, <a target='_blank' href='{self.to_skyvector_plan_url()}'>without airport code</a>"
         output += f"<br/><a target='_blank' href='{self.to_google_map_url()}'>Google Maps Route</a> (with first waypoint of every leg)"
         output += f"<br/>Total distance: {self.total_nm:.0f}nm, Total ETE with 150kts aircraft: {humanize.precisedelta(dt.timedelta(minutes=self.minutes), minimum_unit='minutes', format='%.0f')}</p>"
         for leg in self.legs:
-            output += "<h2>" + leg.title + "</h2>"
+            output += "<h2 style='margin-bottom: 5px'>" + leg.title + "</h2>"
+            output += "<p>View as SkyVector Flight Plan <a target='_blank' href='" + leg.to_skyvector_plan_url(True) + "'>with airport code</a>, <a target='_blank' href='" + leg.to_skyvector_plan_url(False) + "'>without airport code</a>."
+            output += "</br><small>(Use without airport code version if the leg airports do not exist in the real world)</small></br>"
+            output += "<a target='_blank' href='" + leg.to_google_map_url() + "'>View as Google Maps driving direction</a><br/>"
+            output += "<small>(google is limited to 9 waypoints and cannot draw routes that have no road connection)</small><br/>"
+            output += f"Total distance: {leg.total_nm:.0f}nm, ETE with 150kts aircraft: {humanize.precisedelta(dt.timedelta(minutes=leg.minutes), minimum_unit='minutes', format='%.0f')}"
             output += "<table>"
             for i, waypoint in enumerate(leg.waypoints):
                 output += "<tr><td style='white-space: nowrap'>"
@@ -265,14 +276,6 @@ class BushTripXMLParser:
                         output += f"<p>{comment}</p>"
 
                     output += "</td></tr>"
-
-            output += "<tr><td colspan='3'>"
-            output += "View as SkyVector Flight Plan (<a target='_blank' href='" + leg.to_skyvector_plan_url(True) + "'>with airport code</a>), (<a target='_blank' href='" + leg.to_skyvector_plan_url(False) + "'>without airport code</a>)</br>"
-            output += "<p style='font: 8px, color: gray'>Note: Use without airport code version if the leg airports do not exist in the real world</p>"
-            output += "<a target='_blank' href='" + leg.to_google_map_url() + "'>View as Google Maps driving direction</a><br/>"
-            output += "<p style='font: 8px, color: gray'>Note: this is meant as another way to study a trip, google is limited to 9 waypoints and cannot draw routes that have no road connection</p>"
-            output += f"Total distance: {leg.total_nm:.0f}nm, ETE with 150kts aircraft: {humanize.precisedelta(dt.timedelta(minutes=leg.minutes), minimum_unit='minutes', format='%.0f')}"
-            output += "</td></tr>"
             output += "</table>"
 
         output += "</body></html>"
