@@ -78,17 +78,20 @@ class Leg:
         return f"https://skyvector.com/?ll={first_waypoint.lat},{first_waypoint.lon}&chart=301&zoom=2&fpl={urllib.parse.quote(flight_plan)}"
 
     def to_google_map_url(self):
-        first_waypoint = self.waypoints[0]
-        last_waypoint = self.waypoints[-1]
+        google_map_urls = []
+        current_batch = []
+        for waypoint in self.waypoints:
+            current_batch.append(waypoint)
+            if len(current_batch) == 9 or waypoint == self.waypoints[-1]:
+                first_waypoint = current_batch[0]
+                last_waypoint = current_batch[-1]
+                waypoint_lat_lon = urllib.parse.quote("|".join([f"{w.lat} {w.lon}" for w in current_batch[1:-1]]))
+                waypoint_place_names = urllib.parse.quote("|".join([f"{w.name}" for w in current_batch[1:-1]]))
+                google_map_urls.append(f"https://www.google.com/maps/dir/?api=1&origin={first_waypoint.lat}+{first_waypoint.lon}&origin_place_id{urllib.parse.quote(first_waypoint.name)}&destination={last_waypoint.lat}+{last_waypoint.lon}&destination_place_id={urllib.parse.quote(last_waypoint.name)}&waypoints={waypoint_lat_lon}&waypoint_place_ids={waypoint_place_names}")
+                current_batch = [current_batch[-1]]
 
-        last_index = len(self.waypoints) - 1
-        if last_index > 8:
-            last_index = 8
 
-        waypoint_lat_lon = urllib.parse.quote("|".join([f"{w.lat} {w.lon}" for w in self.waypoints[1:last_index]]))
-        waypoint_place_names = urllib.parse.quote("|".join([f"{w.name}" for w in self.waypoints[1:last_index]]))
-
-        return f"https://www.google.com/maps/dir/?api=1&origin={first_waypoint.lat}+{first_waypoint.lon}&origin_place_id{urllib.parse.quote(first_waypoint.name)}&destination={last_waypoint.lat}+{last_waypoint.lon}&destination_place_id={urllib.parse.quote(last_waypoint.name)}&waypoints={waypoint_lat_lon}&waypoint_place_ids={waypoint_place_names}"
+        return google_map_urls
 
 
 class BushTripXMLParser:
@@ -234,7 +237,11 @@ class BushTripXMLParser:
             output += "<h2 style='margin-bottom: 5px'>" + leg.title + "</h2>"
             output += "<p>View as SkyVector Flight Plan <a target='_blank' href='" + leg.to_skyvector_plan_url(True) + "'>with airport code</a>, <a target='_blank' href='" + leg.to_skyvector_plan_url(False) + "'>without airport code</a>."
             output += "</br><small>(Use without airport code version if the leg airports do not exist in the real world)</small></br>"
-            output += "<a target='_blank' href='" + leg.to_google_map_url() + "'>View as Google Maps driving direction</a><br/>"
+            output += "View as Google Maps driving direction: ("
+
+            output += ", ".join([f"<a target='_blank' href='{url}'>Part {i+1}</a>" for i, url in enumerate(leg.to_google_map_url())])
+
+            output += ")<br/>"
             output += "<small>(google is limited to 9 waypoints and cannot draw routes that have no road connection)</small><br/>"
             output += f"Total distance: {leg.total_nm:.0f}nm, ETE with 150kts aircraft: {humanize.precisedelta(dt.timedelta(minutes=leg.minutes), minimum_unit='minutes', format='%.0f')}"
             output += "<table>"
@@ -251,10 +258,15 @@ class BushTripXMLParser:
                 output += "</td>"
 
                 comment = waypoint.comment
+
                 if comment:
                     doc = nlp(comment)
+                    already_replaced = {}
                     for ent in doc.ents:
                         if ent.label_ == "LOC" or ent.label_ == "ORG" or ent.label_ == "PERSON" or ent.label_ == "GPE":
+                            if ent.text in already_replaced:
+                                continue
+                            already_replaced[ent.text] = True
                             comment = comment.replace(ent.text, "<a target='_blank' href='https://www.google.com/search?q=" + ent.text + "'>" + ent.text + "</a>")
 
                 if waypoint.image_path is None:
@@ -270,10 +282,10 @@ class BushTripXMLParser:
                         img = img.resize((basewidth, hsize), Image.ANTIALIAS)
                         # save resized image
                         img.save(waypoint.new_image_path)
-                    output += "<td><img src='" + urllib.request.pathname2url(waypoint.new_image_path) + f"'>"
+                    output += "<td><img src='" + urllib.request.pathname2url(waypoint.new_image_path) + f"' />"
 
                     if comment:
-                        output += f"<p>{comment}</p>"
+                        output += f"{comment}"
 
                     output += "</td></tr>"
             output += "</table>"

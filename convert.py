@@ -21,8 +21,7 @@ class BushTripDesc:
     xml_path: typing.Optional[str] = None
     image_prefix_path: typing.Optional[str] = None
     output_image_path: typing.Optional[str] = None
-    lnmpln_path_original: typing.Optional[str] = None
-    lnmpln_path_modified: typing.Optional[str] = None
+    lnmpln_path: typing.Optional[str] = None
     html_path: typing.Optional[str] = None
     pdf_path: typing.Optional[str] = None
     pdf_screenshot_path: typing.Optional[str] = None
@@ -33,35 +32,39 @@ class BushTripDesc:
 
 official_bush_trip_root_path =  r"C:\Users\Moshe Bergman\AppData\Roaming\Microsoft Flight Simulator\Packages\Official\Steam"
 community_bush_trip_path = r"C:\MSFS\MSFS_Addons_Linker_v13e_1I0B2\Linker_Community\Bush Trips"
-original_lnmpln_path = r"C:\Users\Moshe Bergman\Dropbox\Flight Plans\Original"
-commented_lnmpln_path = r"C:\Users\Moshe Bergman\Dropbox\Flight Plans\Commented"
+output_base_path = r"C:\Users\Moshe Bergman\Dropbox\Flight Plans\Commented"
 spb_to_xml_path = r"C:\MSFS\spb2xml-msfs-1.0.1\spb2xml-msfs.exe"
 prop_def_path = r"C:\Program Files (x86)\Steam\steamapps\common\MicrosoftFlightSimulator\Packages\fs-base-propdefs\Propdefs\1.0\Common"
 
 bush_trips = {
-    # "alaska": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-alaska"),
-    # "austria": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-austria"),
-    # "balkans": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-balkans"),
-    # "chile": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-chile"),
-    # "denmark": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-denmark"),
-    # "finland": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-finland"),
-    # "france": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-france"),
-    # "germany": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-germany"),
-    # "greatbarrier": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-greatbarrier"),
-    # "grandalpine": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-grandalpine"),
-    "iberiaconnection": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-iberiaconnection"),
-    # "iceland": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-iceland"),
-    # "kimberley": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-kimberley"),
-    # "medcoast": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-medcoast"),
-    # "nevada": os.path.join(official_bush_trip_root_path, r"asobo-bushtrip-nevada"),
-    # "norway": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-norway"),
-    # "portugal": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-portugal"),
-    # "pyrenees": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-pyrenees"),
-    # "seadesert": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-seadesert"),
-    # "seaus": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-seaus"),
-    # "sweden": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-sweden"),
-    # "swiss": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-swiss"),
-    # "tasmanian": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-tasmanian"),
+    "aio": {
+        "apennines": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-apennines"),
+        "alaska": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-alaska"),
+        "austria": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-austria"),
+        "balkans": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-balkans"),
+        "chile": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-chile"),
+        "denmark": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-denmark"),
+        "finland": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-finland"),
+        "france": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-france"),
+        "germany": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-germany"),
+        "greatbarrier": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-greatbarrier"),
+        "grandalpine": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-grandalpine"),
+        "iberiaconnection": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-iberiaconnection"),
+        "iceland": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-iceland"),
+        "kimberley": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-kimberley"),
+        "medcoast": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-medcoast"),
+        "nevada": os.path.join(official_bush_trip_root_path, r"asobo-bushtrip-nevada"),
+        "norway": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-norway"),
+        "portugal": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-portugal"),
+        "pyrenees": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-pyrenees"),
+        "sardinia": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-sardinia"),
+        "sicily": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-sicily"),
+        "seadesert": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-seadesert"),
+        "seaus": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-seaus"),
+        "sweden": os.path.join(official_bush_trip_root_path, "asobo-bushtrip-sweden"),
+        "swiss": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-swiss"),
+        "tasmanian": os.path.join(official_bush_trip_root_path, "microsoft-bushtrip-tasmanian"),
+    }
     # "i-a-t": [{
     #     "name": "i-a-t-13-part1-DA62",
     #     "path": os.path.join(community_bush_trip_path, "i-a-t-13-part1-DA62"),
@@ -74,8 +77,16 @@ bush_trips = {
     # }, {
     #     "name": "i-a-t-13-part4-DA62",
     #     "path": os.path.join(community_bush_trip_path, "i-a-t-13-part4-DA62"),
-    # }]
-    #"mission-pakn-pamk": os.path.join(community_bush_trip_path, "Alaska\mission-pakn-pamk"),
+    # }],
+    # "germany-tour": [{
+    #     "name": "germany-tour-part1",
+    #     "path": os.path.join(community_bush_trip_path, r"Germany\Deutschland-Tour-Teil1"),
+    # }],
+    # "discover-spain": [{
+    #     "name": "discover-spain-part1",
+    #     "path": os.path.join(community_bush_trip_path, r"Spain\IFRSanSebastian-SanSebastian-Mission"),
+    # }],
+    # "mission-pakn-pamk": os.path.join(community_bush_trip_path, "Alaska\mission-pakn-pamk"),
     # "sbt-p1-mission": os.path.join(community_bush_trip_path, "SBT-p1-Mission"),
 }
 
@@ -84,10 +95,16 @@ async def main():
 
         # ensure path is array
         if not isinstance(bush_trip_path_arr, list):
-            bush_trip_path_arr = [{"name": package_name, "path": bush_trip_path_arr}]
+            if isinstance(bush_trip_path_arr, str):
+                # old style
+                bush_trip_path_arr = [{"name": package_name, "path": bush_trip_path_arr}]
+            else:
+                # aio style
+                bush_trip_path_arr = [{"name": name, "path": path} for name, path in bush_trip_path_arr.items()]
+
 
         # prepare zip
-        zip_path = os.path.join(commented_lnmpln_path, f"{package_name}.zip")
+        zip_path = os.path.join(output_base_path, f"{package_name}.zip")
         zipf = zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
 
         for part in bush_trip_path_arr:
@@ -96,13 +113,12 @@ async def main():
 
             # find all paths
             trip_desc = BushTripDesc(
-                lnmpln_path_original=os.path.join(original_lnmpln_path, f"{trip_name}.lnmpln"),
-                lnmpln_path_modified=os.path.join(commented_lnmpln_path, f"{trip_name}.lnmpln"),
-                html_path=os.path.join(commented_lnmpln_path, f"{trip_name}.html"),
-                pdf_path=os.path.join(commented_lnmpln_path, f"{trip_name}.pdf"),
-                output_image_path=os.path.join(commented_lnmpln_path, f"{trip_name}-files"),
-                pdf_screenshot_path=os.path.join(commented_lnmpln_path, f"{trip_name}1.png"),
-                leg_plans_path=os.path.join(commented_lnmpln_path, f"{trip_name}-leg-plans")
+                lnmpln_path=os.path.join(output_base_path, f"{trip_name}.lnmpln"),
+                html_path=os.path.join(output_base_path, f"{trip_name}.html"),
+                pdf_path=os.path.join(output_base_path, f"{trip_name}.pdf"),
+                output_image_path=os.path.join(output_base_path, f"{trip_name}-files"),
+                pdf_screenshot_path=os.path.join(output_base_path, f"{trip_name}1.png"),
+                leg_plans_path=os.path.join(output_base_path, f"{trip_name}-leg-plans")
             )
             for path, subdirs, files in os.walk(bush_trip_path):
                 for name in files:
@@ -134,14 +150,14 @@ async def main():
 
             # create little nav map plan
             little_nav_map = LittleNavMap(bush_trip_xml_parser)
-            little_nav_map.generate_lnm_file(trip_desc.lnmpln_path_modified)
+            little_nav_map.generate_lnm_file(trip_desc.lnmpln_path)
 
             # create leg plans
             msfs_plan = MSFSPlan(bush_trip_xml_parser)
             msfs_plan.create_leg_plans(trip_desc.leg_plans_path)
 
             zipf.write(trip_desc.pdf_path, os.path.basename(trip_desc.pdf_path))
-            zipf.write(trip_desc.lnmpln_path_modified, os.path.basename(trip_desc.lnmpln_path_modified))
+            zipf.write(trip_desc.lnmpln_path, os.path.basename(trip_desc.lnmpln_path))
             zipf.write(trip_desc.leg_plans_path, os.path.basename(trip_desc.leg_plans_path))
             for leg_plan in msfs_plan.plan_files:
                 zipf.write(leg_plan, os.path.join(os.path.basename(trip_desc.leg_plans_path), os.path.basename(leg_plan)))

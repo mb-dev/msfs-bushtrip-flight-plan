@@ -27,18 +27,17 @@ class LittleNavMap:
         with tag('Waypoints'):
             for i, leg in enumerate(self.bush_trip_parser.legs):
                 for j, waypoint in enumerate(leg.waypoints):
-                    if (j > 0 and waypoint.image_path) and i < len(self.bush_trip_parser.legs) - 1:
+                    if (j > 0 and waypoint.is_airport) and i < len(self.bush_trip_parser.legs) - 1:
                         # do not add airport twice to the flight plan, unless this is the last leg
                         break
-                    is_airport = True if j == 0 or j == (len(leg.waypoints) - 1) else False
                     with tag('Waypoint'):
                         with tag('Name'):
                             text(waypoint.name)
                         with tag('Ident'):
                             text(waypoint.code)
                         with tag('Type'):
-                            text("AIRPORT" if is_airport else 'USER')
-                        if not waypoint.image_path:
+                            text("AIRPORT" if waypoint.is_airport else 'USER')
+                        if not waypoint.is_airport:
                             with tag('Pos', Lat=waypoint.lat, Lon=waypoint.lon, Alt="1000"):
                                 pass
                         with tag("Comment"):

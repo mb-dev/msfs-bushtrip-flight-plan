@@ -42,7 +42,7 @@ class MSFSPlan:
             for j, waypoint in enumerate(leg.waypoints):
                 with tag('ATCWaypoint', id=waypoint.code):
                     with tag('ATCWaypointType'):
-                        text("Airport" if waypoint.image_path or j == 0 else 'User')
+                        text("Airport" if waypoint.is_airport else 'User')
                     with tag('WorldPosition'):
                         text(f"{waypoint.orig_lat},{waypoint.orig_lon},+000000.00")
                     if waypoint.image_path or j == 0:
